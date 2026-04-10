@@ -1,0 +1,77 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Usuario {
+  id        String   @id @default(cuid())
+  nome      String
+  usuario   String   @unique
+  senha     String   
+  papel     String   // "Administrador" ou "Vendedor"
+  isAdmin   Boolean  @default(false)
+  criadoEm  DateTime @default(now())
+}
+
+model Produto {
+  id            String    @id @default(cuid())
+  codigo        String    @unique
+  nome          String
+  categoria     String?
+  tamanho       String?
+  cor           String?
+  custo         Float     @default(0)
+  preco         Float     
+  estoque       Int       @default(0)
+  alertaEstoque Int       @default(3)
+  foto          String?   @db.Text   
+  
+  vendas        Venda[]
+  entradas      Entrada[]
+  saidas        Saida[]
+
+  criadoEm      DateTime  @default(now())
+  atualizadoEm  DateTime  @updatedAt
+}
+
+model Venda {
+  id             String   @id @default(cuid())
+  data           DateTime @default(now())
+  produtoId      String
+  produto        Produto  @relation(fields: [produtoId], references: [id])
+  quantidade     Int
+  precoOriginal  Float
+  desconto       Float    @default(0)
+  precoUnitario  Float
+  total          Float
+  pagamento      String   
+  parcelas       Int      @default(1)
+  observacao     String?
+}
+
+model Entrada {
+  id             String   @id @default(cuid())
+  data           DateTime @default(now())
+  produtoId      String
+  produto        Produto  @relation(fields: [produtoId], references: [id])
+  quantidade     Int
+  fornecedor     String?
+  descricao      String?
+}
+
+model Saida {
+  id             String   @id @default(cuid())
+  data           DateTime @default(now())
+  produtoId      String
+  produto        Produto  @relation(fields: [produtoId], references: [id])
+  quantidade     Int
+  valor          Float    @default(0)
+  motivo         String   // Avaria, Devolução, Brinde...
+  observacao     String?
+}
