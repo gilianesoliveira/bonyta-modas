@@ -75,3 +75,13 @@ model Saida {
   motivo         String   // Avaria, Devolução, Brinde...
   observacao     String?
 }
+
+model ServicoEstetica {
+  id             String   @id @default(cuid())
+  descricao      String   // Ex: Design de Sobrancelha, Unha, etc.
+  valorTotal     Float    // Valor total pago pela cliente
+  comissaoLoja   Float    // Os 10% que ficam para a Bonyta
+  formaPagamento String   // Dinheiro, Pix, Cartão...
+  cliente        String?  // Opcional: Nome da cliente
+  data           DateTime @default(now())
+}npx prisma db push

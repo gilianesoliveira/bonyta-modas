@@ -18,13 +18,27 @@ export async function realizarLogin(formData: FormData) {
     return { erro: "Usuário ou senha inválidos!" };
   }
 
-  // 3. Cria uma "sessão" simples salvando o ID no cookie (expira em 1 dia)
+  // 3. Cria uma "sessão" simples salvando o ID e o PAPEL no cookie
   const cookieStore = await cookies();
+  
   cookieStore.set("usuario_id", user.id, { 
+    maxAge: 60 * 60 * 24, 
+    path: "/" 
+  });
+  
+  cookieStore.set("usuario_papel", user.papel, { 
     maxAge: 60 * 60 * 24, 
     path: "/" 
   });
 
   // 4. Manda para o Dashboard
   redirect("/");
+} // <-- Veja que a chave de fechamento do Login está aqui
+
+// 5. Função de Logout independente
+export async function realizarLogout() {
+  const cookieStore = await cookies();
+  cookieStore.delete("usuario_id");
+  cookieStore.delete("usuario_papel");
+  redirect("/login");
 }

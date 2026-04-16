@@ -1,70 +1,102 @@
 "use server";
 
-import prisma from "../../../lib/db";
+import prisma from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
-// Criar Produto
-export async function salvarProduto(formData: FormData) {
-  const nome = formData.get("nome") as string;
-  const precoRaw = formData.get("preco") as string;
-  const estoqueRaw = formData.get("estoque") as string;
+// 1. IMPORTAR PRODUTOS VIA CSV
+export async function importarProdutosCSV(formData: FormData) {
+  try {
+    const file = formData.get("file") as File;
+    if (!file) throw new Error("Nenhum arquivo enviado");
 
-  // Validação: Custo não está aqui, pois agora é opcional
-  if (!nome || !precoRaw || !estoqueRaw) {
-    throw new Error("Os campos Nome, Preço de Venda e Estoque são obrigatórios.");
+    const texto = await file.text();
+    const linhas = texto.split("\n").map(l => l.trim()).filter(l => l.length > 0);
+    
+    if (linhas.length <= 1) throw new Error("Arquivo vazio ou sem dados");
+
+    linhas.shift(); // Remove cabeçalho
+
+    let sucesso = 0;
+    let erros = 0;
+
+    for (const linha of linhas) {
+      const colunas = linha.split(/,|;/).map(c => c.replace(/^"|"$/g, '').trim());
+
+      if (colunas.length < 8) {
+        erros++;
+        continue;
+      }
+
+      const [codigo, nome, categoria, tamanho, cor, custoStr, precoStr, estoqueStr] = colunas;
+      const custo = parseFloat(custoStr.replace(',', '.')) || 0;
+      const preco = parseFloat(precoStr.replace(',', '.')) || 0;
+      const estoque = parseInt(estoqueStr) || 0;
+
+      if (!codigo || !nome) {
+        erros++;
+        continue;
+      }
+
+      try {
+        await prisma.produto.upsert({
+          where: { codigo },
+          update: { nome, categoria, tamanho, cor, custo, preco, estoque },
+          create: { codigo, nome, categoria, tamanho, cor, custo, preco, estoque }
+        });
+        sucesso++;
+      } catch (e) {
+        erros++;
+      }
+    }
+
+    revalidatePath("/estoque");
+    return { success: true, message: `${sucesso} produtos importados. ${erros > 0 ? `${erros} erros.` : ''}` };
+  } catch (error: any) {
+    return { success: false, message: error.message || "Erro ao importar arquivo" };
   }
-
-  await prisma.produto.create({
-    data: {
-      codigo: formData.get("codigo") as string,
-      nome: nome,
-      categoria: formData.get("categoria") as string,
-      tamanho: formData.get("tamanho") as string,
-      cor: formData.get("cor") as string,
-      // Se custo for vazio ou inválido, vira 0
-      custo: parseFloat(formData.get("custo") as string) || 0, 
-      preco: parseFloat(precoRaw),
-      estoque: parseInt(estoqueRaw),
-      alertaEstoque: parseInt(formData.get("alertaEstoque") as string) || 3,
-    },
-  });
-
-  revalidatePath("/estoque");
-  revalidatePath("/"); // Atualiza o Dashboard
 }
 
-// Editar Produto
-export async function editarProduto(id: string, formData: FormData) {
-  const nome = formData.get("nome") as string;
-  const precoRaw = formData.get("preco") as string;
-  const estoqueRaw = formData.get("estoque") as string;
+// 2. SALVAR NOVO PRODUTO (MANUAL)
+export async function salvarProduto(dados: any) {
+  await prisma.produto.create({
+    data: {
+      codigo: dados.codigo,
+      nome: dados.nome,
+      categoria: dados.categoria,
+      tamanho: dados.tamanho,
+      cor: dados.cor,
+      custo: parseFloat(dados.custo),
+      preco: parseFloat(dados.preco),
+      estoque: parseInt(dados.estoque),
+      alertaEstoque: parseInt(dados.alertaEstoque) || 3,
+    },
+  });
+  revalidatePath("/estoque");
+}
 
-  // Validação de segurança na edição
-  if (!nome || !precoRaw || !estoqueRaw) {
-    throw new Error("Não é possível salvar sem Nome, Preço ou Estoque.");
-  }
-
+// 3. EDITAR PRODUTO EXISTENTE
+export async function editarProduto(id: string, dados: any) {
   await prisma.produto.update({
     where: { id },
     data: {
-      nome: nome,
-      categoria: formData.get("categoria") as string,
-      tamanho: formData.get("tamanho") as string,
-      cor: formData.get("cor") as string,
-      custo: parseFloat(formData.get("custo") as string) || 0,
-      preco: parseFloat(precoRaw),
-      estoque: parseInt(estoqueRaw),
-      alertaEstoque: parseInt(formData.get("alertaEstoque") as string) || 3,
+      codigo: dados.codigo,
+      nome: dados.nome,
+      categoria: dados.categoria,
+      tamanho: dados.tamanho,
+      cor: dados.cor,
+      custo: parseFloat(dados.custo),
+      preco: parseFloat(dados.preco),
+      estoque: parseInt(dados.estoque),
+      alertaEstoque: parseInt(dados.alertaEstoque) || 3,
     },
   });
-
   revalidatePath("/estoque");
-  revalidatePath("/");
 }
 
-// Excluir Produto
+// 4. EXCLUIR PRODUTO
 export async function excluirProduto(id: string) {
-  await prisma.produto.delete({ where: { id } });
+  await prisma.produto.delete({
+    where: { id },
+  });
   revalidatePath("/estoque");
-  revalidatePath("/");
 }

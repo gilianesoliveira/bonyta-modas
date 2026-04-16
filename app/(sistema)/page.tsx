@@ -1,13 +1,21 @@
 import prisma from "@/lib/db";
 import Link from "next/link";
+import GraficosDashboard from "@/components/GraficosDashboard";
+import { cookies } from "next/headers"; // <-- Importamos para ler o "crachá"
 
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ data?: string; mes?: string; ano?: string }>;
+  searchParams: Promise<{ dataInicio?: string; dataFim?: string; mes?: string; ano?: string }>;
 }) {
+  // --- VERIFICAÇÃO DE PAPEL ---
+  const cookieStore = await cookies();
+  const papel = cookieStore.get("usuario_papel")?.value;
+  const isAdmin = papel === "Administrador";
+
   const params = await searchParams;
-  const dataFiltro = params.data;
+  const dataInicio = params.dataInicio;
+  const dataFim = params.dataFim;
   const mesFiltro = params.mes;
   const anoFiltro = params.ano;
 
@@ -15,13 +23,18 @@ export default async function DashboardPage({
   let dateWhereProdutos = {};
   const hoje = new Date();
 
-  // Lógica de Filtro de Datas
-  if (dataFiltro) {
-    const [ano, mes, dia] = dataFiltro.split('-');
-    const start = new Date(parseInt(ano), parseInt(mes) - 1, parseInt(dia), 0, 0, 0);
-    const end = new Date(parseInt(ano), parseInt(mes) - 1, parseInt(dia), 23, 59, 59);
-    dateWhereVendas = { data: { gte: start, lte: end } };
-    dateWhereProdutos = { criadoEm: { gte: start, lte: end } };
+  // Lógica de Filtro (DE / ATÉ)
+  if (dataInicio || dataFim) {
+    const start = dataInicio ? new Date(`${dataInicio}T00:00:00`) : undefined;
+    const end = dataFim ? new Date(`${dataFim}T23:59:59`) : undefined;
+    
+    const condition = {
+      ...(start && { gte: start }),
+      ...(end && { lte: end })
+    };
+
+    dateWhereVendas = { data: condition };
+    dateWhereProdutos = { criadoEm: condition };
   } else if (mesFiltro || anoFiltro) {
     const ano = anoFiltro && anoFiltro !== "Todos os anos" ? parseInt(anoFiltro) : hoje.getFullYear();
     if (mesFiltro && mesFiltro !== "Todos os meses") {
@@ -47,6 +60,7 @@ export default async function DashboardPage({
   const vendas = await prisma.venda.findMany({
     where: dateWhereVendas,
     include: { produto: true },
+    orderBy: { data: 'desc' }
   });
 
   const produtosCriadosNoPeriodo = await prisma.produto.findMany({
@@ -55,7 +69,7 @@ export default async function DashboardPage({
 
   const todosProdutos = await prisma.produto.findMany();
   
-  // MATEMÁTICA
+  // MATEMÁTICA DOS CARDS
   const faturamentoTotal = vendas.reduce((acc, v) => acc + v.total, 0);
   const ticketMedio = vendas.length > 0 ? faturamentoTotal / vendas.length : 0;
   const totalEntradas = produtosCriadosNoPeriodo.reduce((acc, p) => acc + p.estoque, 0);
@@ -66,18 +80,49 @@ export default async function DashboardPage({
     .sort((a, b) => a.estoque - b.estoque)
     .slice(0, 5);
 
+  // LÓGICA DOS GRÁFICOS (Só processa se for Admin para economizar memória)
+  let dadosPagamento: any[] = [];
+  let dadosPeriodo: any[] = [];
+
+  if (isAdmin) {
+    const pagamentosMap = vendas.reduce((acc: any, venda) => {
+      const pgto = venda.pagamento || "Não informado";
+      acc[pgto] = (acc[pgto] || 0) + venda.total;
+      return acc;
+    }, {});
+    
+    dadosPagamento = Object.entries(pagamentosMap).map(([nome, valor]) => ({
+      nome,
+      valor: Number(valor)
+    }));
+
+    const periodoMap = vendas.reduce((acc: any, venda) => {
+      const dataObj = new Date(venda.data);
+      const dataFormatada = `${String(dataObj.getDate()).padStart(2, '0')}/${String(dataObj.getMonth() + 1).padStart(2, '0')}`;
+      acc[dataFormatada] = (acc[dataFormatada] || 0) + venda.total;
+      return acc;
+    }, {});
+
+    dadosPeriodo = Object.entries(periodoMap)
+      .map(([data, valor]) => ({ data, valor: Number(valor) }))
+      .slice(0, 7)
+      .reverse();
+  }
+
   return (
     <div className="p-6 w-full space-y-6 text-white min-h-screen">
       
       {/* FILTROS */}
       <form method="GET" action="/" className="flex flex-wrap items-center gap-3 bg-white/5 border border-white/10 p-3 rounded-xl w-fit">
-        <input 
-          type="date" 
-          name="data" 
-          defaultValue={dataFiltro || ""}
-          className="bg-transparent border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-300 outline-none focus:border-[#c8338a]"
-          style={{ colorScheme: 'dark' }}
-        />
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-400">De:</span>
+          <input type="date" name="dataInicio" defaultValue={dataInicio || ""} className="bg-transparent border border-white/10 rounded-lg px-2 py-1.5 text-sm text-gray-300 outline-none focus:border-[#c8338a]" style={{ colorScheme: 'dark' }} />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-400">Até:</span>
+          <input type="date" name="dataFim" defaultValue={dataFim || ""} className="bg-transparent border border-white/10 rounded-lg px-2 py-1.5 text-sm text-gray-300 outline-none focus:border-[#c8338a]" style={{ colorScheme: 'dark' }} />
+        </div>
+        <span className="text-gray-600">|</span>
         <select name="mes" defaultValue={mesFiltro || ""} className="bg-transparent border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-300 outline-none [&>option]:bg-[#1a1a2e]">
           <option value="">Todos os meses</option>
           <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
@@ -93,15 +138,15 @@ export default async function DashboardPage({
         <Link href="/" className="text-gray-400 hover:text-white px-3 py-2 text-sm">✕ Limpar</Link>
       </form>
 
-      {/* CARDS COM LINKS PERSONALIZADOS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* CARDS DINÂMICOS (Vendedora vê 3, Admin vê 4) */}
+      <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 ${isAdmin ? 'lg:grid-cols-4' : 'lg:grid-cols-3'}`}>
         <CardDashboard 
           title="Vendas no período" 
           value={vendas.length} 
-          sub={`R$ ${faturamentoTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2})} em receita`} 
+          sub={isAdmin ? `R$ ${faturamentoTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2})} em receita` : 'Pedidos realizados'} 
           color="#c8338a" 
           icon="🛍️" 
-          href="/relatorios" 
+          href="/vendas" 
         />
         <CardDashboard 
           title="Peças em estoque" 
@@ -111,23 +156,31 @@ export default async function DashboardPage({
           icon="📦" 
           href="/estoque" 
         />
-        <CardDashboard 
-          title="Receita Total Período" 
-          value={`R$ ${faturamentoTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`} 
-          sub={`Ticket médio: R$ ${ticketMedio.toFixed(2)}`} 
-          color="#f39c12" 
-          icon="💰" 
-          href="/relatorios" 
-        />
+        {/* CARD DE DINHEIRO SÓ APARECE PARA ADMIN */}
+        {isAdmin && (
+          <CardDashboard 
+            title="Receita Total Período" 
+            value={`R$ ${faturamentoTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`} 
+            sub={`Ticket médio: R$ ${ticketMedio.toFixed(2)}`} 
+            color="#f39c12" 
+            icon="💰" 
+            href="/relatorios" 
+          />
+        )}
         <CardDashboard 
           title="Entradas no período" 
           value={totalEntradas} 
           sub="peças recebidas" 
           color="#3498db" 
           icon="📥" 
-          href="/estoque" 
+          href="/estoque/entrada" 
         />
       </div>
+
+      {/* GRÁFICOS SÓ APARECEM PARA ADMIN */}
+      {isAdmin && (
+        <GraficosDashboard dadosPeriodo={dadosPeriodo} dadosPagamento={dadosPagamento} />
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 bg-[#1a1b2e] border border-white/5 rounded-xl p-6">
@@ -142,7 +195,12 @@ export default async function DashboardPage({
               <table className="w-full text-left">
                 <thead>
                   <tr className="border-b border-white/5 text-[10px] text-gray-400 uppercase tracking-wider">
-                    <th className="pb-3">Data</th><th className="pb-3">Produto</th><th className="pb-3 text-center">Qtd</th><th className="pb-3">Total</th><th className="pb-3">Pgto</th>
+                    <th className="pb-3">Data</th>
+                    <th className="pb-3">Produto</th>
+                    <th className="pb-3 text-center">Qtd</th>
+                    {/* CABEÇALHO DA COLUNA TOTAL (SÓ ADMIN) */}
+                    {isAdmin && <th className="pb-3 text-right">Total</th>}
+                    <th className="pb-3 text-right">Pgto</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -154,8 +212,15 @@ export default async function DashboardPage({
                         <div className="text-[#c8338a] font-bold text-[10px]">Cód: {v.produto.codigo}</div>
                       </td>
                       <td className="py-3 text-center">{v.quantidade}x</td>
-                      <td className="py-3 text-[#27ae60] font-bold">R$ {v.total.toFixed(2)}</td>
-                      <td className="py-3 text-gray-400">{v.pagamento}</td>
+                      
+                      {/* VALOR DA COLUNA TOTAL (SÓ ADMIN) */}
+                      {isAdmin && (
+                        <td className="py-3 text-[#27ae60] font-bold text-right">
+                          R$ {v.total.toFixed(2)}
+                        </td>
+                      )}
+                      
+                      <td className="py-3 text-gray-400 text-right">{v.pagamento}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -164,7 +229,7 @@ export default async function DashboardPage({
           )}
         </div>
 
-        {/* ALERTA DE ESTOQUE - CLICÁVEL PARA O ESTOQUE */}
+        {/* ALERTA DE ESTOQUE - APARECE PARA OS DOIS */}
         <Link href="/estoque" className="block group">
           <div className="bg-[#1a1b2e] border border-white/5 rounded-xl p-6 h-fit transition-all duration-300 group-hover:border-[#f39c12]/30 group-hover:shadow-[0_0_20px_rgba(243,156,18,0.05)]">
             <div className="flex justify-between items-center mb-6">

@@ -6,22 +6,30 @@ import ExportarProdutosExcel from "@/components/ExportarProdutosExcel";
 export default async function RelatoriosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ aba?: string; data?: string; mes?: string; ano?: string }>;
+  searchParams: Promise<{ aba?: string; dataInicio?: string; dataFim?: string; mes?: string; ano?: string }>;
 }) {
   const params = await searchParams;
   const abaAtual = params.aba || "geral";
-  const dataFiltro = params.data;
+  const dataInicio = params.dataInicio;
+  const dataFim = params.dataFim;
   const mesFiltro = params.mes;
   const anoFiltro = params.ano || "2026";
   const hoje = new Date();
 
-  // 1. LÓGICA DE FILTRO DE DATA
+  // 1. LÓGICA DE FILTRO DE DATA (DE / ATÉ)
   let dateWhere = {};
   const anoQuery = parseInt(anoFiltro);
 
-  if (dataFiltro) {
-    const [ano, mes, dia] = dataFiltro.split('-');
-    dateWhere = { data: { gte: new Date(parseInt(ano), parseInt(mes) - 1, parseInt(dia), 0, 0, 0), lte: new Date(parseInt(ano), parseInt(mes) - 1, parseInt(dia), 23, 59, 59) } };
+  if (dataInicio || dataFim) {
+    const start = dataInicio ? new Date(`${dataInicio}T00:00:00`) : undefined;
+    const end = dataFim ? new Date(`${dataFim}T23:59:59`) : undefined;
+    
+    dateWhere = {
+      data: {
+        ...(start && { gte: start }),
+        ...(end && { lte: end })
+      }
+    };
   } else if (mesFiltro && mesFiltro !== "") {
     const mes = parseInt(mesFiltro);
     dateWhere = { data: { gte: new Date(anoQuery, mes - 1, 1), lte: new Date(anoQuery, mes, 0, 23, 59, 59) } };
@@ -38,7 +46,14 @@ export default async function RelatoriosPage({
 
   const todosProdutos = await prisma.produto.findMany();
 
-  // 3. PROCESSAMENTO DE DADOS
+  // 3. PROCESSAMENTO DE DADOS (ESTOQUE)
+  const valorCustoEstoque = todosProdutos.reduce((acc, p) => acc + ((p.custo || 0) * p.estoque), 0);
+  const valorVendaEstoque = todosProdutos.reduce((acc, p) => acc + ((p.preco || 0) * p.estoque), 0);
+  const lucroPotencialEstoque = valorVendaEstoque - valorCustoEstoque;
+  const margemPotencial = valorVendaEstoque > 0 ? (lucroPotencialEstoque / valorVendaEstoque) * 100 : 0;
+  const totalPecasEstoque = todosProdutos.reduce((acc, p) => acc + p.estoque, 0);
+
+  // 4. PROCESSAMENTO DE DADOS (VENDAS)
   const totalReceita = vendasFiltradas.reduce((acc, v) => acc + v.total, 0);
   const totalPecas = vendasFiltradas.reduce((acc, v) => acc + v.quantidade, 0);
 
@@ -84,21 +99,29 @@ export default async function RelatoriosPage({
     <div className="p-6 w-full space-y-6 text-white min-h-screen">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="font-serif text-2xl font-bold italic tracking-tight">Relatórios Bonyta</h1>
+          <h1 className="font-serif text-2xl font-bold italic tracking-tight text-white">Relatórios Bonyta</h1>
           <p className="text-[10px] text-gray-500 uppercase tracking-widest">Controle Financeiro e Operacional</p>
         </div>
         <span className="text-xs text-gray-500 font-medium">{hoje.toLocaleDateString('pt-BR', { dateStyle: 'full' })}</span>
       </div>
 
       {/* FILTROS */}
-      <form method="GET" action="/relatorios" className="flex flex-wrap items-center gap-2 bg-white/5 p-4 rounded-2xl border border-white/5 shadow-xl">
+      <form method="GET" action="/relatorios" className="flex flex-wrap items-center gap-3 bg-white/5 p-4 rounded-2xl border border-white/5 shadow-xl">
         <input type="hidden" name="aba" value={abaAtual} />
-        <input type="date" name="data" defaultValue={dataFiltro} className="bg-[#08080f] border border-white/10 rounded-lg px-3 py-2 text-xs outline-none focus:border-[#c8338a] transition-all text-white" style={{colorScheme: 'dark'}} />
-        <select name="mes" defaultValue={mesFiltro} className="bg-[#08080f] border border-white/10 rounded-lg px-3 py-2 text-xs outline-none focus:border-[#c8338a] text-white">
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-400">De:</span>
+          <input type="date" name="dataInicio" defaultValue={dataInicio || ""} className="bg-[#08080f] border border-white/10 rounded-lg px-3 py-2 text-xs outline-none focus:border-[#c8338a] transition-all text-white" style={{colorScheme: 'dark'}} />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-400">Até:</span>
+          <input type="date" name="dataFim" defaultValue={dataFim || ""} className="bg-[#08080f] border border-white/10 rounded-lg px-3 py-2 text-xs outline-none focus:border-[#c8338a] transition-all text-white" style={{colorScheme: 'dark'}} />
+        </div>
+        <span className="text-gray-600">|</span>
+        <select name="mes" defaultValue={mesFiltro || ""} className="bg-[#08080f] border border-white/10 rounded-lg px-3 py-2 text-xs outline-none focus:border-[#c8338a] text-white">
           <option value="">Todos os meses</option>
           {nomesMeses.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
         </select>
-        <select name="ano" defaultValue={anoFiltro} className="bg-[#08080f] border border-white/10 rounded-lg px-3 py-2 text-xs outline-none focus:border-[#c8338a] text-white">
+        <select name="ano" defaultValue={anoFiltro || ""} className="bg-[#08080f] border border-white/10 rounded-lg px-3 py-2 text-xs outline-none focus:border-[#c8338a] text-white">
           <option value="2025">2025</option><option value="2026">2026</option>
         </select>
         <button type="submit" className="bg-[#c8338a]/10 border border-[#c8338a]/30 text-[#ff79c6] px-5 py-2 rounded-lg text-xs font-bold hover:bg-[#c8338a]/20 transition-all">Filtrar</button>
@@ -115,33 +138,64 @@ export default async function RelatoriosPage({
 
       {/* CONTEÚDO DAS ABAS */}
       {abaAtual === "geral" && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-in fade-in duration-500">
-          <div className="bg-[#131425] border border-white/5 rounded-2xl p-6 shadow-2xl">
-            <h2 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-8 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-[#c8338a]"></span> Resumo Financeiro
+        <div className="animate-in fade-in duration-500 space-y-6">
+          
+          {/* NOVO: RESUMO FINANCEIRO DO ESTOQUE */}
+          <div className="mb-6">
+            <h2 className="text-[10px] font-bold text-[#f39c12] uppercase tracking-widest mb-3 flex items-center gap-2">
+              <span>🔒</span> Resumo Financeiro do Estoque — Administrador
             </h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-6 text-center">
-              <StatItem label="Receita Bruta" value={`R$ ${totalReceita.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`} color="text-[#2ecc71]" />
-              <StatItem label="Qtd Vendas" value={vendasFiltradas.length} />
-              <StatItem label="Ticket Médio" value={`R$ ${(totalReceita / (vendasFiltradas.length || 1)).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`} />
-              <StatItem label="Peças Vendidas" value={totalPecas} color="text-[#c8338a]" />
-              <StatItem label="Estoque Atual" value={todosProdutos.reduce((acc,p)=>acc+p.estoque,0)} />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-[#1a1b2e] border border-white/5 border-t-[#34495e] border-t-[3px] rounded-xl p-5 shadow-lg">
+                <div className="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-2">Valor de Custo</div>
+                <div className="text-xl font-bold text-white mb-1">R$ {valorCustoEstoque.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
+                <div className="text-[10px] text-gray-500">total investido</div>
+              </div>
+              <div className="bg-[#1a1b2e] border border-white/5 border-t-[#2ecc71] border-t-[3px] rounded-xl p-5 shadow-lg">
+                <div className="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-2">Valor de Venda</div>
+                <div className="text-xl font-bold text-white mb-1">R$ {valorVendaEstoque.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
+                <div className="text-[10px] text-gray-500">receita potencial</div>
+              </div>
+              <div className="bg-[#1a1b2e] border border-white/5 border-t-[#9b59b6] border-t-[3px] rounded-xl p-5 shadow-lg">
+                <div className="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-2">Lucro Potencial</div>
+                <div className="text-xl font-bold text-white mb-1">R$ {lucroPotencialEstoque.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
+                <div className="text-[10px] text-gray-500">margem: {margemPotencial.toFixed(1)}%</div>
+              </div>
+              <div className="bg-[#1a1b2e] border border-white/5 border-t-[#c8338a] border-t-[3px] rounded-xl p-5 shadow-lg">
+                <div className="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-2">Total de Peças</div>
+                <div className="text-xl font-bold text-white mb-1">{totalPecasEstoque}</div>
+                <div className="text-[10px] text-gray-500">unidades em estoque</div>
+              </div>
             </div>
           </div>
-          <div className="bg-[#131425] border border-white/5 rounded-2xl p-6 shadow-2xl">
-            <h2 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-8">Meios de Pagamento</h2>
-            <div className="space-y-5">
-              {Object.entries(pagamentos).map(([nome, valor]: any) => (
-                <ProgressBar key={nome} label={nome} valor={valor} total={totalReceita} />
-              ))}
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-[#131425] border border-white/5 rounded-2xl p-6 shadow-2xl">
+              <h2 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-8 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-[#c8338a]"></span> Resumo Financeiro de Vendas
+              </h2>
+              <div className="grid grid-cols-2 md:grid-cols-2 gap-6 text-center">
+                <StatItem label="Receita Bruta" value={`R$ ${totalReceita.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`} color="text-[#2ecc71]" />
+                <StatItem label="Qtd Vendas" value={vendasFiltradas.length} />
+                <StatItem label="Ticket Médio" value={`R$ ${(totalReceita / (vendasFiltradas.length || 1)).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`} />
+                <StatItem label="Peças Vendidas" value={totalPecas} color="text-[#c8338a]" />
+              </div>
             </div>
-          </div>
-          <div className="lg:col-span-2 bg-[#131425] border border-white/5 rounded-2xl p-6 shadow-2xl">
-            <h2 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-8">Vendas por Categoria</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
-              {Object.entries(categorias).map(([nome, valor]: any) => (
-                <ProgressBar key={nome} label={nome} valor={valor} total={totalReceita} color="bg-gradient-to-r from-[#9b1f6a] to-[#c8338a]" />
-              ))}
+            <div className="bg-[#131425] border border-white/5 rounded-2xl p-6 shadow-2xl">
+              <h2 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-8">Meios de Pagamento</h2>
+              <div className="space-y-5">
+                {Object.entries(pagamentos).map(([nome, valor]: any) => (
+                  <ProgressBar key={nome} label={nome} valor={valor} total={totalReceita} />
+                ))}
+              </div>
+            </div>
+            <div className="lg:col-span-2 bg-[#131425] border border-white/5 rounded-2xl p-6 shadow-2xl">
+              <h2 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-8">Vendas por Categoria</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
+                {Object.entries(categorias).map(([nome, valor]: any) => (
+                  <ProgressBar key={nome} label={nome} valor={valor} total={totalReceita} color="bg-gradient-to-r from-[#9b1f6a] to-[#c8338a]" />
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -241,7 +295,6 @@ export default async function RelatoriosPage({
 }
 
 // --- HELPERS ---
-
 function TabLink({ active, label, href }: { active: boolean; label: string; href: string }) {
   return (
     <Link href={href} className={`px-6 py-3 rounded-t-2xl text-[11px] uppercase tracking-tighter transition-all duration-300 ${active ? "bg-[#c8338a] text-white font-black shadow-lg shadow-[#c8338a]/20" : "text-gray-500 hover:text-gray-300 bg-white/5"}`}>
@@ -275,7 +328,7 @@ function ProgressBar({ label, valor, total, color = "bg-[#c8338a]" }: any) {
 }
 
 function ProgressBarAnual({ label, valor, max, vendas }: any) {
-  const percentual = (valor / max) * 100;
+  const percentual = max > 0 ? (valor / max) * 100 : 0;
   return (
     <div className="flex items-center gap-6 group hover:bg-white/5 p-2 rounded-xl transition-all">
       <span className="text-[10px] text-gray-500 w-8 uppercase font-black">{label}</span>

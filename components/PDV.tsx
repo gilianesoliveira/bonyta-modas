@@ -13,7 +13,7 @@ export default function PDV() {
   const [quantidade, setQuantidade] = useState(1);
   const [pagamento, setPagamento] = useState("Dinheiro");
   const [parcelas, setParcelas] = useState(1);
-  const [observacao, setObservacao] = useState("");
+  const [observacao, setObservacao] = useState(""); // Usaremos este campo para o Nome da Cliente
 
   const handleBusca = async (texto: string) => {
     setQuery(texto);
@@ -33,6 +33,7 @@ export default function PDV() {
     setQuantidade(1);
     setPagamento("Dinheiro");
     setParcelas(1);
+    setObservacao(""); // Limpa o nome do cliente ao trocar de peça
   };
 
   const handleVender = async () => {
@@ -54,7 +55,7 @@ export default function PDV() {
       total,
       pagamento,
       parcelas: pagamento === "Cartão Crédito" ? parcelas : 1,
-      observacao,
+      observacao, // Enviando o nome da cliente no campo de observação
     });
 
     alert("✅ Venda registrada com sucesso!");
@@ -104,29 +105,31 @@ export default function PDV() {
         </div>
       ) : (
         <div className="bg-white/5 border border-white/10 rounded-xl p-5">
+          {/* TOPO: Informações do Produto (Sem o emoji) */}
           <div className="flex justify-between items-start mb-5 pb-5 border-b border-white/10">
-            <div className="flex gap-4">
-              <div className="w-20 h-20 bg-black/20 rounded-lg flex items-center justify-center text-3xl border border-white/5">👗</div>
-              <div>
-                <h3 className="text-lg font-bold text-white">{produtoSelecionado.nome}</h3>
-                <div className="flex items-center gap-2 mt-1">
-                  {desconto > 0 ? (
-                    <>
-                      <span className="line-through text-gray-500 text-sm">R$ {produtoSelecionado.preco.toFixed(2)}</span>
-                      <span className="text-xl font-bold text-[#c8338a]">R$ {precoFinalUnitario.toFixed(2)}</span>
-                    </>
-                  ) : (
-                    <span className="text-xl font-bold text-[#c8338a]">R$ {produtoSelecionado.preco.toFixed(2)}</span>
-                  )}
-                </div>
-                <div className="flex gap-2 mt-2">
-                  <span className="bg-green-500/15 text-green-400 px-2 py-0.5 rounded-full text-[10px] font-bold">Estoque: {produtoSelecionado.estoque}</span>
-                </div>
+            <div>
+              <div className="text-[#c8338a] font-bold text-xs tracking-widest mb-1">CÓD: {produtoSelecionado.codigo}</div>
+              <h3 className="text-xl font-bold text-white">{produtoSelecionado.nome}</h3>
+              <div className="flex items-center gap-3 mt-2">
+                {desconto > 0 ? (
+                  <>
+                    <span className="line-through text-gray-500 text-sm">R$ {produtoSelecionado.preco.toFixed(2)}</span>
+                    <span className="text-2xl font-bold text-[#c8338a]">R$ {precoFinalUnitario.toFixed(2)}</span>
+                  </>
+                ) : (
+                  <span className="text-2xl font-bold text-[#c8338a]">R$ {produtoSelecionado.preco.toFixed(2)}</span>
+                )}
+              </div>
+              <div className="mt-3 inline-block bg-white/5 border border-white/10 text-gray-300 px-3 py-1 rounded-md text-xs font-medium">
+                Estoque atual: <span className="text-white font-bold">{produtoSelecionado.estoque} un</span>
               </div>
             </div>
-            <button onClick={() => setProdutoSelecionado(null)} className="text-gray-400 hover:text-white text-sm bg-white/5 px-3 py-1.5 rounded-lg">✕ Trocar</button>
+            <button onClick={() => setProdutoSelecionado(null)} className="text-gray-400 hover:text-white text-xs uppercase tracking-widest font-bold bg-white/5 px-4 py-2 rounded-lg border border-transparent hover:border-white/10 transition-all">
+              ✕ Cancelar
+            </button>
           </div>
 
+          {/* MEIO: Formulário de Venda */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
             <div className="flex flex-col gap-1">
               <label className="text-[11px] text-gray-400 uppercase tracking-wider">Desc. % (máx 40)</label>
@@ -152,15 +155,26 @@ export default function PDV() {
             )}
           </div>
           
+          {/* NOME DA CLIENTE (Campo de Observação) */}
           <div className="flex flex-col gap-1 mb-6">
-            <label className="text-[11px] text-gray-400 uppercase tracking-wider">Observação (opcional)</label>
-            <input type="text" value={observacao} onChange={(e) => setObservacao(e.target.value)} placeholder="Nome do cliente..." className="bg-black/20 border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none focus:border-[#c8338a]" />
+            <label className="text-[11px] text-[#c8338a] font-bold uppercase tracking-wider">Nome da Cliente</label>
+            <input 
+              type="text" 
+              value={observacao} 
+              onChange={(e) => setObservacao(e.target.value)} 
+              placeholder="Digite o nome da cliente (opcional)" 
+              className="bg-black/20 border border-white/10 rounded-lg p-3 text-sm text-white outline-none focus:border-[#c8338a] transition-all" 
+            />
           </div>
 
-          <div className="flex items-center justify-between border-t border-white/10 pt-5">
-            <div className="text-[#27ae60] text-2xl font-bold font-serif">R$ {totalVenda.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
-            <button onClick={handleVender} className="bg-gradient-to-r from-[#9b1f6a] to-[#c8338a] text-white px-6 py-3 rounded-lg font-bold hover:opacity-90 shadow-lg shadow-[#c8338a]/20">
-              ✅ Confirmar Venda
+          {/* RODAPÉ: Total e Botão */}
+          <div className="flex items-center justify-between border-t border-white/10 pt-5 mt-2">
+            <div>
+               <div className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-1">Total a Pagar</div>
+               <div className="text-[#27ae60] text-3xl font-bold font-serif">R$ {totalVenda.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
+            </div>
+            <button onClick={handleVender} className="bg-gradient-to-r from-[#9b1f6a] to-[#c8338a] text-white px-8 py-4 rounded-xl font-bold uppercase tracking-widest text-xs hover:opacity-90 shadow-[0_0_20px_rgba(200,51,138,0.3)] transition-all hover:scale-[1.02]">
+              Finalizar Venda
             </button>
           </div>
         </div>

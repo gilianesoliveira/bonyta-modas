@@ -6,11 +6,10 @@ export default async function VendasPage() {
   const vendas = await prisma.venda.findMany({
     orderBy: { data: "desc" },
     include: { produto: true }, // Traz os dados da peça junto
-    take: 50,
+    take: 20,
   });
 
   return (
-    // Adicionado text-white para visibilidade global
     <div className="p-6 w-full space-y-6 text-white min-h-screen">
       <div className="flex justify-between items-end border-b border-white/10 pb-4">
         <div>
@@ -33,6 +32,8 @@ export default async function VendasPage() {
                 <th className="p-3 text-[10px] text-gray-500 uppercase tracking-widest font-bold">Data/Hora</th>
                 <th className="p-3 text-[10px] text-gray-500 uppercase tracking-widest font-bold">Cód.</th>
                 <th className="p-3 text-[10px] text-gray-500 uppercase tracking-widest font-bold">Produto</th>
+                {/* NOVA COLUNA: CLIENTE */}
+                <th className="p-3 text-[10px] text-[#c8338a] uppercase tracking-widest font-bold">Cliente</th>
                 <th className="p-3 text-[10px] text-gray-500 uppercase tracking-widest font-bold text-center">Qtd</th>
                 <th className="p-3 text-[10px] text-gray-500 uppercase tracking-widest font-bold">Preço Un.</th>
                 <th className="p-3 text-[10px] text-gray-500 uppercase tracking-widest font-bold text-center">Desc.</th>
@@ -40,11 +41,10 @@ export default async function VendasPage() {
                 <th className="p-3 text-[10px] text-gray-500 uppercase tracking-widest font-bold">Pagamento</th>
               </tr>
             </thead>
-            {/* tbody com text-gray-300 para garantir que nada fique preto */}
             <tbody className="text-gray-300">
               {vendas.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="p-16 text-center text-gray-600">
+                  <td colSpan={9} className="p-16 text-center text-gray-600">
                     <div className="text-4xl mb-3 opacity-20">🛒</div>
                     <p className="font-medium italic">Nenhuma venda registrada ainda.</p>
                   </td>
@@ -57,6 +57,18 @@ export default async function VendasPage() {
                     </td>
                     <td className="p-3 text-[#c8338a] font-black">{v.produto.codigo}</td>
                     <td className="p-3 text-white font-semibold">{v.produto.nome}</td>
+                    
+                    {/* DADO DA NOVA COLUNA: CLIENTE (Puxando do campo observacao) */}
+                    <td className="p-3 text-gray-300 font-medium">
+                      {v.observacao ? (
+                        <span className="bg-white/5 px-2 py-1 rounded text-xs border border-white/10">
+                          {v.observacao}
+                        </span>
+                      ) : (
+                        <span className="text-gray-600 italic">—</span>
+                      )}
+                    </td>
+
                     <td className="p-3 text-center font-medium">{v.quantidade}x</td>
                     <td className="p-3 text-gray-400">R$ {v.precoOriginal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
                     <td className="p-3 text-center">
