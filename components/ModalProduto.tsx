@@ -12,19 +12,35 @@ export default function ModalProduto({ proximoCodigo, produtoParaEditar }: Modal
   const [isOpen, setIsOpen] = useState(false);
   const isEdit = !!produtoParaEditar;
 
-  async function handleSubmit(formData: FormData) {
-    if (isEdit) {
-      await editarProduto(produtoParaEditar.id, formData);
-    } else {
-      await salvarProduto(formData);
+  // Lógica blindada: Captura o evento nativo do form
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault(); // Impede o form de recarregar a tela
+
+    // Extrai o FormData com segurança absoluta
+    const formData = new FormData(event.currentTarget);
+
+    try {
+      if (isEdit) {
+        await editarProduto(produtoParaEditar.id, formData);
+      } else {
+        await salvarProduto(formData);
+      }
+      setIsOpen(false);
+    } catch (error) {
+      console.error("Erro ao salvar:", error);
+      alert("Erro ao salvar produto. Verifique os dados.");
     }
-    setIsOpen(false);
   }
 
   async function handleExcluir() {
     if (confirm(`Deseja realmente excluir ${produtoParaEditar.nome}?`)) {
-      await excluirProduto(produtoParaEditar.id);
-      setIsOpen(false);
+      try {
+        await excluirProduto(produtoParaEditar.id);
+        setIsOpen(false);
+      } catch (error) {
+        console.error("Erro ao excluir:", error);
+        alert("Erro ao excluir produto.");
+      }
     }
   }
 
@@ -47,7 +63,8 @@ export default function ModalProduto({ proximoCodigo, produtoParaEditar }: Modal
               <button onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-white">✕</button>
             </div>
 
-            <form action={handleSubmit} className="space-y-4">
+            {/* O SEGREDO ESTÁ AQUI: onSubmit ao invés de action */}
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4 text-left">
                 {/* CÓDIGO (SOMENTE LEITURA) */}
                 <div className="flex flex-col gap-1">

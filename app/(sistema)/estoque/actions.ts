@@ -56,40 +56,66 @@ export async function importarProdutosCSV(formData: FormData) {
   }
 }
 
-// 2. SALVAR NOVO PRODUTO (MANUAL)
-export async function salvarProduto(dados: any) {
+// 2. SALVAR NOVO PRODUTO (MANUAL) - CORRIGIDO PARA RECEBER FORMDATA
+export async function salvarProduto(formData: FormData) {
+  // Extrai os dados do FormData e converte os números de forma segura
+  const codigo = formData.get("codigo") as string;
+  const nome = formData.get("nome") as string;
+  const categoria = formData.get("categoria") as string;
+  const tamanho = formData.get("tamanho") as string;
+  const cor = formData.get("cor") as string;
+  
+  const custo = parseFloat(formData.get("custo") as string) || 0;
+  const preco = parseFloat(formData.get("preco") as string) || 0;
+  const estoque = parseInt(formData.get("estoque") as string) || 0;
+  const alertaEstoque = parseInt(formData.get("alertaEstoque") as string) || 3;
+
   await prisma.produto.create({
     data: {
-      codigo: dados.codigo,
-      nome: dados.nome,
-      categoria: dados.categoria,
-      tamanho: dados.tamanho,
-      cor: dados.cor,
-      custo: parseFloat(dados.custo),
-      preco: parseFloat(dados.preco),
-      estoque: parseInt(dados.estoque),
-      alertaEstoque: parseInt(dados.alertaEstoque) || 3,
+      codigo,
+      nome,
+      categoria,
+      tamanho,
+      cor,
+      custo,
+      preco,
+      estoque,
+      alertaEstoque,
     },
   });
+  
   revalidatePath("/estoque");
 }
 
-// 3. EDITAR PRODUTO EXISTENTE
-export async function editarProduto(id: string, dados: any) {
+// 3. EDITAR PRODUTO EXISTENTE - CORRIGIDO PARA RECEBER FORMDATA
+export async function editarProduto(id: string, formData: FormData) {
+  // Extrai os dados do FormData e converte os números de forma segura
+  const codigo = formData.get("codigo") as string;
+  const nome = formData.get("nome") as string;
+  const categoria = formData.get("categoria") as string;
+  const tamanho = formData.get("tamanho") as string;
+  const cor = formData.get("cor") as string;
+  
+  const custo = parseFloat(formData.get("custo") as string) || 0;
+  const preco = parseFloat(formData.get("preco") as string) || 0;
+  const estoque = parseInt(formData.get("estoque") as string) || 0;
+  const alertaEstoque = parseInt(formData.get("alertaEstoque") as string) || 3;
+
   await prisma.produto.update({
     where: { id },
     data: {
-      codigo: dados.codigo,
-      nome: dados.nome,
-      categoria: dados.categoria,
-      tamanho: dados.tamanho,
-      cor: dados.cor,
-      custo: parseFloat(dados.custo),
-      preco: parseFloat(dados.preco),
-      estoque: parseInt(dados.estoque),
-      alertaEstoque: parseInt(dados.alertaEstoque) || 3,
+      codigo,
+      nome,
+      categoria,
+      tamanho,
+      cor,
+      custo,
+      preco,
+      estoque,
+      alertaEstoque,
     },
   });
+  
   revalidatePath("/estoque");
 }
 
