@@ -68,7 +68,7 @@ export default function LoginPage() {
         </div>
 
         <p className="text-center text-gray-600 text-[10px] mt-8 uppercase tracking-widest">
-          Sistema de Gestão Interna • v1.0
+           {new Date().getFullYear()} Giliane. Todos os direitos reservados.
         </p>
       </div>
     </div>
