@@ -23,7 +23,7 @@ export default function GraficosDashboard({ dadosPeriodo, dadosPagamento }: Prop
         <div className="bg-[#08080f] border border-white/10 p-3 rounded-lg shadow-xl">
           <p className="text-gray-400 text-xs mb-1">{label}</p>
           <p className="text-[#c8338a] font-bold text-sm">
-            R$ {payload[0].value.toFixed(2)}
+            R$ {Number(payload[0].value || 0).toFixed(2)}
           </p>
         </div>
       );
@@ -37,7 +37,7 @@ export default function GraficosDashboard({ dadosPeriodo, dadosPagamento }: Prop
         <div className="bg-[#08080f] border border-white/10 p-3 rounded-lg shadow-xl">
           <p className="text-white font-bold text-sm mb-1">{payload[0].name}</p>
           <p className="text-gray-400 text-xs">
-            R$ {payload[0].value.toFixed(2)}
+            R$ {Number(payload[0].value || 0).toFixed(2)}
           </p>
         </div>
       );
@@ -60,12 +60,11 @@ export default function GraficosDashboard({ dadosPeriodo, dadosPagamento }: Prop
       {/* GRÁFICO 1: BARRAS */}
       <div className="bg-[#131425] border border-white/5 rounded-2xl p-6 shadow-2xl">
         <h2 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-6">Receita por Dia</h2>
-        {/* O macete do 99% entra aqui no ResponsiveContainer */}
         <div className="w-full">
           <ResponsiveContainer width="99%" height={250}>
             <BarChart data={dadosPeriodo}>
               <XAxis dataKey="data" stroke="#4b5563" fontSize={10} tickLine={false} axisLine={false} />
-              <YAxis stroke="#4b5563" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(value) => `R$${value}`} />
+              <YAxis stroke="#4b5563" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(value: any) => `R$${value}`} />
               <Tooltip cursor={{fill: 'rgba(255,255,255,0.02)'}} content={<CustomTooltipBar />} />
               <Bar dataKey="valor" fill="#c8338a" radius={[4, 4, 0, 0]} />
             </BarChart>
@@ -76,7 +75,6 @@ export default function GraficosDashboard({ dadosPeriodo, dadosPagamento }: Prop
       {/* GRÁFICO 2: PIZZA */}
       <div className="bg-[#131425] border border-white/5 rounded-2xl p-6 shadow-2xl flex flex-col">
         <h2 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Vendas por Pagamento</h2>
-        {/* O macete do 99% entra aqui no ResponsiveContainer */}
         <div className="w-full flex-1">
           <ResponsiveContainer width="99%" height={250}>
             <PieChart>
