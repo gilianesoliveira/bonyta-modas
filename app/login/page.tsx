@@ -38,7 +38,7 @@ export default function LoginPage() {
                 name="usuario" 
                 required 
                 type="text" 
-                placeholder="Ex: admin"
+                placeholder="Digite seu usuário"
                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3.5 text-sm text-white outline-none focus:border-[#c8338a] focus:bg-white/10 transition-all mt-1"
               />
             </div>
@@ -49,7 +49,7 @@ export default function LoginPage() {
                 name="senha" 
                 required 
                 type="password" 
-                placeholder="••••••••"
+                placeholder="Digite sua senha"
                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3.5 text-sm text-white outline-none focus:border-[#c8338a] focus:bg-white/10 transition-all mt-1"
               />
             </div>
