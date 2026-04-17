@@ -46,31 +46,10 @@ export default async function RelatoriosPage({
 
   const todosProdutos = await prisma.produto.findMany();
 
-  // 3. PROCESSAMENTO DE DADOS (ESTOQUE)
-  const valorCustoEstoque = todosProdutos.reduce((acc, p) => {
-    const estoqueReal = Math.max(0, Number(p.estoque) || 0);
-    const custoReal = Number(p.custo) || 0;
-    return acc + (custoReal * estoqueReal);
-  }, 0);
-
-  const valorVendaEstoque = todosProdutos.reduce((acc, p) => {
-    const estoqueReal = Math.max(0, Number(p.estoque) || 0);
-    const precoReal = Number(p.preco) || 0;
-    return acc + (precoReal * estoqueReal);
-  }, 0);
-
-  const totalPecasEstoque = todosProdutos.reduce((acc, p) => {
-    return acc + Math.max(0, Number(p.estoque) || 0);
-  }, 0);
-
-  const lucroPotencialEstoque = valorVendaEstoque - valorCustoEstoque;
-  const margemPotencial = valorVendaEstoque > 0 ? (lucroPotencialEstoque / valorVendaEstoque) * 100 : 0;
-
-  // 4. PROCESSAMENTO DE DADOS (VENDAS) E MARGEM LÍQUIDA
+  // 3. PROCESSAMENTO DE DADOS (VENDAS) - Vem primeiro para descobrirmos a realidade da loja
   const totalReceita = vendasFiltradas.reduce((acc, v) => acc + (Number(v.total) || 0), 0);
   const totalPecas = vendasFiltradas.reduce((acc, v) => acc + (Number(v.quantidade) || 0), 0);
   
-  // CÁLCULO DE LUCRO REAL DAS VENDAS
   const custoDasVendas = vendasFiltradas.reduce((acc, v) => {
     const custoPeca = Number(v.produto?.custo) || 0;
     const qtd = Number(v.quantidade) || 0;
@@ -80,6 +59,34 @@ export default async function RelatoriosPage({
   const lucroLiquidoReal = totalReceita - custoDasVendas;
   const margemLiquida = totalReceita > 0 ? (lucroLiquidoReal / totalReceita) * 100 : 0;
 
+  // Calcula o impacto dos descontos na vida real (O "Fator Vida Real")
+  const valorTabelaDasVendas = vendasFiltradas.reduce((acc, v) => acc + ((Number(v.produto?.preco) || 0) * (Number(v.quantidade) || 0)), 0);
+  const fatorDescontoReal = valorTabelaDasVendas > 0 ? (totalReceita / valorTabelaDasVendas) : 1;
+
+  // 4. PROCESSAMENTO DE DADOS (ESTOQUE) - Calculado com base na realidade
+  const valorCustoEstoque = todosProdutos.reduce((acc, p) => {
+    const estoqueReal = Math.max(0, Number(p.estoque) || 0);
+    const custoReal = Number(p.custo) || 0;
+    return acc + (custoReal * estoqueReal);
+  }, 0);
+
+  const valorVendaEstoqueTabela = todosProdutos.reduce((acc, p) => {
+    const estoqueReal = Math.max(0, Number(p.estoque) || 0);
+    const precoReal = Number(p.preco) || 0;
+    return acc + (precoReal * estoqueReal);
+  }, 0);
+
+  const totalPecasEstoque = todosProdutos.reduce((acc, p) => {
+    return acc + Math.max(0, Number(p.estoque) || 0);
+  }, 0);
+
+  // A MÁGICA DO WILLIAM: Aplicamos o Fator de Desconto Histórico na projeção do estoque
+  const receitaProjetadaEstoque = valorVendaEstoqueTabela * fatorDescontoReal;
+  const lucroProjetadoEstoque = receitaProjetadaEstoque - valorCustoEstoque;
+  const margemProjetadaEstoque = receitaProjetadaEstoque > 0 ? (lucroProjetadoEstoque / receitaProjetadaEstoque) * 100 : 0;
+
+
+  // Lógica dos Gráficos
   const pagamentos = vendasFiltradas.reduce((acc: any, v) => {
     const valorReal = Number(v.total) || 0;
     acc[v.pagamento] = (acc[v.pagamento] || 0) + valorReal;
@@ -166,31 +173,31 @@ export default async function RelatoriosPage({
       {abaAtual === "geral" && (
         <div className="animate-in fade-in duration-500 space-y-6">
           
-          {/* RESUMO FINANCEIRO DO ESTOQUE */}
+          {/* RESUMO FINANCEIRO DO ESTOQUE (PROJETADO NA REALIDADE) */}
           <div className="mb-6">
             <h2 className="text-[10px] font-bold text-[#f39c12] uppercase tracking-widest mb-3 flex items-center gap-2">
-              <span>🔒</span> Resumo Financeiro do Estoque — Administrador
+              <span>🔒</span> Projeção Financeira do Estoque — Administrador
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="bg-[#1a1b2e] border border-white/5 border-t-[#34495e] border-t-[3px] rounded-xl p-5 shadow-lg">
                 <div className="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-2">Valor de Custo</div>
                 <div className="text-xl font-bold text-white mb-1">R$ {valorCustoEstoque.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
-                <div className="text-[10px] text-gray-500">total investido</div>
+                <div className="text-[10px] text-gray-500">total investido nas peças</div>
               </div>
               <div className="bg-[#1a1b2e] border border-white/5 border-t-[#2ecc71] border-t-[3px] rounded-xl p-5 shadow-lg">
-                <div className="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-2">Valor de Venda</div>
-                <div className="text-xl font-bold text-white mb-1">R$ {valorVendaEstoque.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
-                <div className="text-[10px] text-gray-500">receita potencial</div>
+                <div className="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-2">Valor Projetado (Venda)</div>
+                <div className="text-xl font-bold text-white mb-1">R$ {receitaProjetadaEstoque.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
+                <div className="text-[10px] text-[#2ecc71] font-bold">já prevendo {((1 - fatorDescontoReal) * 100).toFixed(1)}% de desconto</div>
               </div>
               <div className="bg-[#1a1b2e] border border-white/5 border-t-[#9b59b6] border-t-[3px] rounded-xl p-5 shadow-lg">
-                <div className="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-2">Lucro Potencial</div>
-                <div className="text-xl font-bold text-white mb-1">R$ {lucroPotencialEstoque.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
-                <div className="text-[10px] text-gray-500">margem: {margemPotencial.toFixed(1)}%</div>
+                <div className="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-2">Lucro Projetado (Real)</div>
+                <div className="text-xl font-bold text-white mb-1">R$ {lucroProjetadoEstoque.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
+                <div className="text-[10px] text-gray-500">margem esperada: {margemProjetadaEstoque.toFixed(1)}%</div>
               </div>
               <div className="bg-[#1a1b2e] border border-white/5 border-t-[#c8338a] border-t-[3px] rounded-xl p-5 shadow-lg">
                 <div className="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-2">Total de Peças</div>
                 <div className="text-xl font-bold text-white mb-1">{totalPecasEstoque}</div>
-                <div className="text-[10px] text-gray-500">unidades em estoque</div>
+                <div className="text-[10px] text-gray-500">unidades paradas na loja</div>
               </div>
             </div>
           </div>
@@ -204,13 +211,13 @@ export default async function RelatoriosPage({
               <div className="grid grid-cols-2 gap-6 text-center">
                 <StatItem label="Receita Bruta" value={`R$ ${totalReceita.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`} color="text-[#2ecc71]" />
                 
-                {/* NOVO: CARD DE LUCRO LÍQUIDO */}
+                {/* CARD DE LUCRO LÍQUIDO */}
                 <div className="group transition-transform hover:scale-105">
                   <div className={`font-serif font-black text-xl mb-1 text-[#9b59b6]`}>
                     R$ {lucroLiquidoReal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
                   </div>
                   <div className="text-[9px] text-gray-600 uppercase font-bold tracking-widest">Lucro Líquido Real</div>
-                  <div className="text-[9px] text-[#c8338a] font-bold mt-1">Margem: {margemLiquida.toFixed(1)}%</div>
+                  <div className="text-[9px] text-[#c8338a] font-bold mt-1">Margem Realizada: {margemLiquida.toFixed(1)}%</div>
                 </div>
 
                 <StatItem label="Qtd Vendas" value={vendasFiltradas.length} />
