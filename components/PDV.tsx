@@ -9,7 +9,8 @@ export default function PDV() {
   const [produtoSelecionado, setProdutoSelecionado] = useState<any | null>(null);
 
   // Estados do Formulário de Venda
-  const [desconto, setDesconto] = useState(0);
+  // INICIA O DESCONTO VAZIO PARA MELHORAR A UX
+  const [desconto, setDesconto] = useState<number | string>(""); 
   const [quantidade, setQuantidade] = useState(1);
   const [pagamento, setPagamento] = useState("Dinheiro");
   const [parcelas, setParcelas] = useState(1);
@@ -29,7 +30,7 @@ export default function PDV() {
     setProdutoSelecionado(p);
     setSugestoes([]);
     setQuery("");
-    setDesconto(0);
+    setDesconto(""); // Limpa o desconto ao trocar de peça
     setQuantidade(1);
     setPagamento("Dinheiro");
     setParcelas(1);
@@ -43,14 +44,16 @@ export default function PDV() {
       return;
     }
 
-    const precoUnitario = produtoSelecionado.preco * (1 - desconto / 100);
+    // Garante que o desconto vazio seja tratado como 0% na hora de salvar
+    const descontoFinal = Number(desconto) || 0;
+    const precoUnitario = produtoSelecionado.preco * (1 - descontoFinal / 100);
     const total = precoUnitario * quantidade;
 
     await finalizarVenda({
       produtoId: produtoSelecionado.id,
       quantidade,
       precoOriginal: produtoSelecionado.preco,
-      desconto,
+      desconto: descontoFinal,
       precoUnitario,
       total,
       pagamento,
@@ -62,7 +65,9 @@ export default function PDV() {
     setProdutoSelecionado(null);
   };
 
-  const precoFinalUnitario = produtoSelecionado ? produtoSelecionado.preco * (1 - desconto / 100) : 0;
+  // Garante que o desconto vazio seja tratado como 0% na hora de mostrar na tela
+  const descontoView = Number(desconto) || 0;
+  const precoFinalUnitario = produtoSelecionado ? produtoSelecionado.preco * (1 - descontoView / 100) : 0;
   const totalVenda = precoFinalUnitario * quantidade;
 
   return (
@@ -112,7 +117,7 @@ export default function PDV() {
               <div className="text-[#c8338a] font-bold text-[10px] uppercase tracking-widest mb-1 bg-[#c8338a]/10 inline-block px-2 py-0.5 rounded">CÓD: {produtoSelecionado.codigo}</div>
               <h3 className="text-xl font-bold text-white mt-1 leading-tight">{produtoSelecionado.nome}</h3>
               <div className="flex items-center gap-3 mt-3">
-                {desconto > 0 ? (
+                {descontoView > 0 ? (
                   <>
                     <span className="line-through text-gray-500 text-xs">R$ {produtoSelecionado.preco.toFixed(2)}</span>
                     <span className="text-2xl font-bold text-[#2ecc71]">R$ {precoFinalUnitario.toFixed(2)}</span>
@@ -133,11 +138,23 @@ export default function PDV() {
             </div>
           </div>
 
-          {/* MEIO: Formulário de Venda (Responsivo 1 coluna celular, 2 tablet, 4 PC) */}
+          {/* MEIO: Formulário de Venda */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
             <div className="flex flex-col gap-1.5">
               <label className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Desconto % (máx 40)</label>
-              <input type="number" min="0" max="40" value={desconto} onChange={(e) => setDesconto(Math.min(40, Math.max(0, Number(e.target.value))))} className="bg-black/40 border border-white/10 rounded-xl p-3.5 text-sm font-medium text-white outline-none focus:border-[#c8338a] transition-colors" />
+              <input 
+                type="number" 
+                min="0" 
+                max="40" 
+                value={desconto} 
+                onChange={(e) => {
+                  const val = e.target.value;
+                  // Se apagar tudo, deixa vazio. Se digitar, limita entre 0 e 40.
+                  setDesconto(val === "" ? "" : Math.min(40, Math.max(0, Number(val))));
+                }} 
+                placeholder="0"
+                className="bg-black/40 border border-white/10 rounded-xl p-3.5 text-sm font-medium text-white outline-none focus:border-[#c8338a] transition-colors" 
+              />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Quantidade</label>

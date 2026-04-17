@@ -63,7 +63,6 @@ export default function ModalProduto({ proximoCodigo, produtoParaEditar }: Modal
               <button onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-white">✕</button>
             </div>
 
-            {/* O SEGREDO ESTÁ AQUI: onSubmit ao invés de action */}
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4 text-left">
                 {/* CÓDIGO (SOMENTE LEITURA) */}
@@ -90,10 +89,10 @@ export default function ModalProduto({ proximoCodigo, produtoParaEditar }: Modal
                   <input required name="preco" type="number" step="0.01" min="0.01" defaultValue={produtoParaEditar?.preco} className="bg-white/5 border border-white/10 rounded-lg p-2.5 text-sm text-white focus:border-[#c8338a] outline-none" />
                 </div>
 
-                {/* ESTOQUE (OBRIGATÓRIO) */}
+                {/* ESTOQUE (OBRIGATÓRIO) - AJUSTADO PARA FICAR EM BRANCO NO NOVO CADASTRO */}
                 <div className="flex flex-col gap-1">
                   <label className="text-[11px] text-gray-400 uppercase font-bold tracking-wider">Estoque Atual <span className="text-red-500">*</span></label>
-                  <input required name="estoque" type="number" min="0" defaultValue={produtoParaEditar?.estoque || 0} className="bg-white/5 border border-white/10 rounded-lg p-2.5 text-sm text-white focus:border-[#c8338a] outline-none" />
+                  <input required name="estoque" type="number" min="0" defaultValue={isEdit ? produtoParaEditar.estoque : ""} className="bg-white/5 border border-white/10 rounded-lg p-2.5 text-sm text-white focus:border-[#c8338a] outline-none" />
                 </div>
                 
                 {/* ALERTA (OBRIGATÓRIO) */}
