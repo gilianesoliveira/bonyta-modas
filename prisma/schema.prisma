@@ -84,4 +84,4 @@ model ServicoEstetica {
   formaPagamento String   // Dinheiro, Pix, Cartão...
   cliente        String?  // Opcional: Nome da cliente
   data           DateTime @default(now())
-}npx prisma db push
+}

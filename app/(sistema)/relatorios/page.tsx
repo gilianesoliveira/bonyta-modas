@@ -46,50 +46,67 @@ export default async function RelatoriosPage({
 
   const todosProdutos = await prisma.produto.findMany();
 
-  // 3. PROCESSAMENTO DE DADOS (ESTOQUE)
-  const valorCustoEstoque = todosProdutos.reduce((acc, p) => acc + ((p.custo || 0) * p.estoque), 0);
-  const valorVendaEstoque = todosProdutos.reduce((acc, p) => acc + ((p.preco || 0) * p.estoque), 0);
+  // 3. PROCESSAMENTO DE DADOS (ESTOQUE) - LÓGICA CORRIGIDA
+  // Forçando a conversão para Number e ignorando estoques negativos
+  const valorCustoEstoque = todosProdutos.reduce((acc, p) => {
+    const estoqueReal = Math.max(0, Number(p.estoque) || 0);
+    const custoReal = Number(p.custo) || 0;
+    return acc + (custoReal * estoqueReal);
+  }, 0);
+
+  const valorVendaEstoque = todosProdutos.reduce((acc, p) => {
+    const estoqueReal = Math.max(0, Number(p.estoque) || 0);
+    const precoReal = Number(p.preco) || 0;
+    return acc + (precoReal * estoqueReal);
+  }, 0);
+
+  const totalPecasEstoque = todosProdutos.reduce((acc, p) => {
+    return acc + Math.max(0, Number(p.estoque) || 0);
+  }, 0);
+
   const lucroPotencialEstoque = valorVendaEstoque - valorCustoEstoque;
   const margemPotencial = valorVendaEstoque > 0 ? (lucroPotencialEstoque / valorVendaEstoque) * 100 : 0;
-  const totalPecasEstoque = todosProdutos.reduce((acc, p) => acc + p.estoque, 0);
 
-  // 4. PROCESSAMENTO DE DADOS (VENDAS)
-  const totalReceita = vendasFiltradas.reduce((acc, v) => acc + v.total, 0);
-  const totalPecas = vendasFiltradas.reduce((acc, v) => acc + v.quantidade, 0);
+  // 4. PROCESSAMENTO DE DADOS (VENDAS) - LÓGICA CORRIGIDA
+  const totalReceita = vendasFiltradas.reduce((acc, v) => acc + (Number(v.total) || 0), 0);
+  const totalPecas = vendasFiltradas.reduce((acc, v) => acc + (Number(v.quantidade) || 0), 0);
 
   const pagamentos = vendasFiltradas.reduce((acc: any, v) => {
-    acc[v.pagamento] = (acc[v.pagamento] || 0) + v.total;
+    const valorReal = Number(v.total) || 0;
+    acc[v.pagamento] = (acc[v.pagamento] || 0) + valorReal;
     return acc;
   }, {});
 
   const categorias = vendasFiltradas.reduce((acc: any, v) => {
-    const cat = v.produto.categoria || "Outros";
-    acc[cat] = (acc[cat] || 0) + v.total;
+    const cat = v.produto?.categoria || "Outros";
+    const valorReal = Number(v.total) || 0;
+    acc[cat] = (acc[cat] || 0) + valorReal;
     return acc;
   }, {});
 
   const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
   const dadosMensais = nomesMeses.map((nome, index) => {
     const vendasDoMes = vendasFiltradas.filter(v => new Date(v.data).getMonth() === index);
-    const receita = vendasDoMes.reduce((acc, v) => acc + v.total, 0);
-    return { nome, receita, qtd: vendasDoMes.length, pecas: vendasDoMes.reduce((acc,v)=>acc+v.quantidade,0) };
+    const receita = vendasDoMes.reduce((acc, v) => acc + (Number(v.total) || 0), 0);
+    const pecas = vendasDoMes.reduce((acc, v) => acc + (Number(v.quantidade) || 0), 0);
+    return { nome, receita, qtd: vendasDoMes.length, pecas };
   });
 
   const vendasPorProduto = vendasFiltradas.reduce((acc: any, v) => {
-    const nome = v.produto.nome;
+    const nome = v.produto?.nome || "Produto Deletado";
     if (!acc[nome]) {
       acc[nome] = { 
         nome, 
         receita: 0, 
         pecas: 0, 
-        codigo: v.produto.codigo,
-        categoria: v.produto.categoria || "Outros",
-        custoUnitario: v.produto.custo || 0,
-        estoque: v.produto.estoque || 0
+        codigo: v.produto?.codigo || "-",
+        categoria: v.produto?.categoria || "Outros",
+        custoUnitario: Number(v.produto?.custo) || 0,
+        estoque: Number(v.produto?.estoque) || 0
       };
     }
-    acc[nome].receita += v.total;
-    acc[nome].pecas += v.quantidade;
+    acc[nome].receita += (Number(v.total) || 0);
+    acc[nome].pecas += (Number(v.quantidade) || 0);
     return acc;
   }, {});
   

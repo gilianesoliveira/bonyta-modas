@@ -27,7 +27,8 @@ export default async function Sidebar() {
   const isAdmin = papelExibicao === "Administrador";
 
   return (
-    <aside className="w-[230px] bg-[#08080f] border-r border-white/10 h-screen fixed flex flex-col z-50">
+    // A MÁGICA MOBILE: hidden (esconde no celular) md:flex (mostra no PC)
+    <aside className="w-[230px] bg-[#08080f] border-r border-white/10 h-screen fixed hidden md:flex flex-col z-50">
       {/* LOGO */}
       <div className="p-5 text-center border-b border-white/10">
         <div className="font-serif text-xl font-bold text-white tracking-widest">Bonyta</div>
